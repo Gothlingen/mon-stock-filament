@@ -28,7 +28,10 @@
       </div>
       <div>
         <h1 class="text-lg font-bold text-white leading-tight">Stock & AMS Lite</h1>
-        <p class="text-xs text-gray-400">Glisser-déposer réordonnable & Édition</p>
+        <p class="text-xs text-gray-400 flex items-center gap-2">
+          <span>Synchro Cloud</span>
+          <span id="syncStatus" class="inline-block w-2 h-2 rounded-full bg-yellow-500" title="Chargement..."></span>
+        </p>
       </div>
     </div>
     <button onclick="openModalForNew()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2 shadow-md">
@@ -158,8 +161,65 @@
   </div>
 
   <script>
-    let filaments = JSON.parse(localStorage.getItem('my_filaments_v3')) || [];
+    // Configuration JSONBin.io
+    const BIN_ID = '6a84783ff5f4af5e2924dc28'; 
+    const SECRET_KEY = '$2a$10$2g8ray6s5AzPSXCJnXpYy.ofQSSMvwhOBKW6.WPhLWT006Iws2dZ6';
+
+    let filaments = [];
     let draggedIndex = null;
+
+    function setSyncStatus(state) {
+      const el = document.getElementById('syncStatus');
+      if (state === 'syncing') {
+        el.className = "inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse";
+        el.title = "Synchronisation...";
+      } else if (state === 'ok') {
+        el.className = "inline-block w-2 h-2 rounded-full bg-emerald-500";
+        el.title = "Synchronisé avec le Cloud";
+      } else {
+        el.className = "inline-block w-2 h-2 rounded-full bg-red-500";
+        el.title = "Erreur de synchronisation";
+      }
+    }
+
+    async function loadDataFromCloud() {
+      setSyncStatus('syncing');
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { 'X-Master-Key': SECRET_KEY }
+        });
+        if (!res.ok) throw new Error('Erreur réseau');
+        const json = await res.json();
+        filaments = json.record.filaments || [];
+        setSyncStatus('ok');
+        renderAll();
+      } catch (err) {
+        console.error(err);
+        setSyncStatus('error');
+        filaments = JSON.parse(localStorage.getItem('my_filaments_v3')) || [];
+        renderAll();
+      }
+    }
+
+    async function saveDataToCloud() {
+      setSyncStatus('syncing');
+      localStorage.setItem('my_filaments_v3', JSON.stringify(filaments));
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': SECRET_KEY
+          },
+          body: JSON.stringify({ filaments })
+        });
+        if (!res.ok) throw new Error('Erreur sauvegarde');
+        setSyncStatus('ok');
+      } catch (err) {
+        console.error(err);
+        setSyncStatus('error');
+      }
+    }
 
     function getSpoolSVG(colorHex, sizeClass = "w-14 h-14") {
       return `
@@ -263,7 +323,6 @@
       });
     }
 
-    // Drag & Drop
     function handleDragStart(e, index) {
       draggedIndex = index;
       e.dataTransfer.setData('text/plain', index);
@@ -280,7 +339,6 @@
       e.currentTarget.classList.remove('drag-over');
     }
 
-    // Déposer sur un slot AMS ou dans le vide de l'étagère
     function handleDrop(e, targetLocation) {
       e.preventDefault();
       e.stopPropagation();
@@ -300,7 +358,6 @@
       saveAndRender();
     }
 
-    // Déposer directement sur une autre bobine du Stock pour réordonner
     function handleDropOnSpool(e, targetIndex) {
       e.preventDefault();
       e.stopPropagation();
@@ -308,10 +365,7 @@
 
       if (draggedIndex === null || draggedIndex === targetIndex) return;
 
-      // On s'assure que l'élément déplacé passe bien en Stock
       filaments[draggedIndex].location = 'Stock';
-
-      // On réordonne dans le tableau
       const [draggedItem] = filaments.splice(draggedIndex, 1);
       filaments.splice(targetIndex, 0, draggedItem);
 
@@ -319,7 +373,6 @@
       saveAndRender();
     }
 
-    // Modal
     function openModalForNew(slotId = 'Stock') {
       document.getElementById('editIndex').value = "-1";
       document.getElementById('modalTitle').innerText = "Ajouter un Filament";
@@ -402,11 +455,12 @@
     }
 
     function saveAndRender() {
-      localStorage.setItem('my_filaments_v3', JSON.stringify(filaments));
       renderAll();
+      saveDataToCloud();
     }
 
-    renderAll();
+    loadDataFromCloud();
+    setInterval(loadDataFromCloud, 10000);
   </script>
 </body>
 </html>

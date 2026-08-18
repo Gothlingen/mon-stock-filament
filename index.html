@@ -161,9 +161,9 @@
   </div>
 
   <script>
-    // Configuration JSONBin.io
+    // Configuration JSONBin.io (Access Key)
     const BIN_ID = '6a84783ff5f4af5e2924dc28'; 
-    const SECRET_KEY = '$2a$10$2g8ray6s5AzPSXCJnXpYy.ofQSSMvwhOBKW6.WPhLWT006Iws2dZ6';
+    const ACCESS_KEY = '$2a$10$KNaKe/Kf57wJCQG0lrRlUupNxtKvyu9O4PoLP.91vJvXWe61PhKum';
 
     let filaments = [];
     let draggedIndex = null;
@@ -186,7 +186,7 @@
       setSyncStatus('syncing');
       try {
         const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          headers: { 'X-Master-Key': SECRET_KEY }
+          headers: { 'X-Access-Key': ACCESS_KEY }
         });
         if (!res.ok) throw new Error('Erreur réseau');
         const json = await res.json();
@@ -209,7 +209,7 @@
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-Master-Key': SECRET_KEY
+            'X-Access-Key': ACCESS_KEY
           },
           body: JSON.stringify({ filaments })
         });

@@ -9,14 +9,16 @@
     body { background-color: #121316; color: #E0E0E0; user-select: none; }
     .shelf-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       gap: 12px;
     }
+    .spool-card { cursor: grab; transition: transform 0.15s ease, border-color 0.15s ease; }
+    .spool-card:active { cursor: grabbing; transform: scale(0.96); }
+    .drag-over { border-color: #10B981 !important; background-color: rgba(16, 185, 129, 0.1) !important; }
   </style>
 </head>
 <body class="p-4 font-sans max-w-7xl mx-auto">
 
-  <!-- En-tête -->
   <header class="flex justify-between items-center bg-[#1E2026] p-4 rounded-xl mb-6 shadow-lg border border-gray-800">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-full bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center">
@@ -26,18 +28,17 @@
       </div>
       <div>
         <h1 class="text-lg font-bold text-white leading-tight">Stock & AMS Lite</h1>
-        <p class="text-xs text-gray-400">Gestionnaire de Filaments 3D</p>
+        <p class="text-xs text-gray-400">Glisser-déposer réordonnable & Édition</p>
       </div>
     </div>
-    <button onclick="openModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2 shadow-md">
+    <button onclick="openModalForNew()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2 shadow-md">
       <span>+</span> Ajouter un Filament
     </button>
   </header>
 
-  <!-- Disposition en 2 colonnes : AMS Lite (Gauche) et Stock (Droite) -->
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-    <!-- BOÎTE 1 : AMS LITE (À GAUCHE - 5 Colonnes) -->
+    <!-- BOÎTE 1 : AMS LITE (À GAUCHE) -->
     <section class="lg:col-span-5 bg-[#181A1F] p-5 rounded-xl border border-gray-800/80 shadow-xl flex flex-col justify-between">
       <div>
         <div class="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
@@ -47,41 +48,27 @@
           <span class="text-[11px] text-gray-500">Bambu Lab</span>
         </div>
 
-        <!-- Schéma AMS Lite 2x2 avec Axe Central -->
         <div class="relative bg-[#131418] p-4 rounded-xl border border-gray-800/60 my-2">
-          
-          <!-- Axe Central Grisé (Inspiré de l'AMS Lite) -->
           <div class="absolute left-1/2 top-4 bottom-4 -translate-x-1/2 w-4 bg-gray-800/80 rounded-full border border-gray-700/50 z-0"></div>
 
-          <!-- Grille 2x2 des Emplacements (A1, A4 / A2, A3) -->
           <div class="grid grid-cols-2 gap-4 relative z-10">
-            <!-- Top Left: A1 -->
-            <div id="slot-A1" class="ams-slot-container"></div>
-            
-            <!-- Top Right: A4 -->
-            <div id="slot-A4" class="ams-slot-container"></div>
-
-            <!-- Bottom Left: A2 -->
-            <div id="slot-A2" class="ams-slot-container"></div>
-
-            <!-- Bottom Right: A3 -->
-            <div id="slot-A3" class="ams-slot-container"></div>
+            <div id="slot-A1" data-slot="A1" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A1')"></div>
+            <div id="slot-A4" data-slot="A4" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A4')"></div>
+            <div id="slot-A2" data-slot="A2" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A2')"></div>
+            <div id="slot-A3" data-slot="A3" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A3')"></div>
           </div>
         </div>
       </div>
-
-      <p class="text-[11px] text-gray-500 text-center mt-3">
-        Assignation directe des positions A1 à A4 comme dans Bambu Studio.
-      </p>
+      <p class="text-[11px] text-gray-500 text-center mt-3">Glisse une bobine sur un slot ou clique dessus pour modifier.</p>
     </section>
 
-    <!-- BOÎTE 2 : STOCK GÉNÉRAL (À DROITE - 7 Colonnes) -->
-    <section class="lg:col-span-7 bg-[#181A1F] p-5 rounded-xl border border-gray-800/80 shadow-xl min-h-[500px]">
+    <!-- BOÎTE 2 : STOCK GÉNÉRAL (À DROITE) -->
+    <section class="lg:col-span-7 bg-[#181A1F] p-5 rounded-xl border border-gray-800/80 shadow-xl min-h-[500px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Stock')">
       <div class="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
         <h2 class="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
           <span>📦</span> Stock Étagère
         </h2>
-        <span class="text-[11px] text-gray-500">Cliquer pour ajuster le poids</span>
+        <span class="text-[11px] text-gray-500">Glisse entre les bobines pour réordonner</span>
       </div>
 
       <div id="shelf" class="shelf-grid"></div>
@@ -89,14 +76,16 @@
 
   </div>
 
-  <!-- Modal / Fenêtre d'ajout & édition -->
+  <!-- Modal Édition / Création -->
   <div id="modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50 backdrop-blur-sm">
     <div class="bg-[#1E2026] border border-gray-700/80 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-gray-800 pb-3">
-        <h3 class="text-base font-bold text-white">Caractéristique du Filament</h3>
+        <h3 id="modalTitle" class="text-base font-bold text-white">Éditer le Filament</h3>
         <button onclick="closeModal()" class="text-gray-400 hover:text-white text-lg">&times;</button>
       </div>
       
+      <input type="hidden" id="editIndex" value="-1">
+
       <div class="space-y-3.5">
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -129,10 +118,10 @@
             <label class="text-xs text-gray-400 mb-1 block">Position</label>
             <select id="location" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
               <option value="Stock">Étagère (Stock)</option>
-              <option value="A1">AMS Lite - A1 (Haut-G) </option>
-              <option value="A2">AMS Lite - A2 (Bas-G)</option>
-              <option value="A3">AMS Lite - A3 (Bas-D)</option>
-              <option value="A4">AMS Lite - A4 (Haut-D)</option>
+              <option value="A1">AMS Lite - A1</option>
+              <option value="A2">AMS Lite - A2</option>
+              <option value="A3">AMS Lite - A3</option>
+              <option value="A4">AMS Lite - A4</option>
             </select>
           </div>
           <div>
@@ -158,17 +147,20 @@
         </div>
       </div>
 
-      <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
-        <button onclick="closeModal()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Annuler</button>
-        <button onclick="saveFilament()" class="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 shadow-md transition-all">Enregistrer</button>
+      <div class="flex justify-between items-center pt-3 border-t border-gray-800">
+        <button id="deleteBtn" onclick="deleteCurrentFilament()" class="px-3 py-2 text-xs text-red-400 hover:text-red-300 transition-colors hidden">Supprimer</button>
+        <div class="flex gap-2 ml-auto">
+          <button onclick="closeModal()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Annuler</button>
+          <button onclick="saveFilament()" class="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 shadow-md transition-all">Enregistrer</button>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
     let filaments = JSON.parse(localStorage.getItem('my_filaments_v3')) || [];
+    let draggedIndex = null;
 
-    // Générateur visuel pour le SVG de bobine Bambu
     function getSpoolSVG(colorHex, sizeClass = "w-14 h-14") {
       return `
         <div class="relative flex items-center justify-center">
@@ -188,7 +180,6 @@
       renderShelf();
     }
 
-    // Affichage des 4 Slots AMS Lite
     function renderAMS() {
       const slots = ['A1', 'A4', 'A2', 'A3'];
 
@@ -199,27 +190,16 @@
 
         if (item) {
           container.innerHTML = `
-            <div class="bg-[#1E2026] border border-emerald-500/40 rounded-xl p-3 flex flex-col items-center relative shadow-lg group">
-              <!-- Pastille / Tag d'emplacement -->
+            <div draggable="true" ondragstart="handleDragStart(event, ${itemIndex})" onclick="openModalForEdit(${itemIndex})" class="spool-card bg-[#1E2026] border border-emerald-500/40 rounded-xl p-3 flex flex-col items-center relative shadow-lg group hover:border-emerald-400">
               <span class="absolute top-2 left-2 bg-emerald-500 text-black font-extrabold text-[10px] px-1.5 py-0.5 rounded-md shadow">
                 ${slotId}
               </span>
-
-              <!-- Bouton Suppression / Éjection -->
-              <button onclick="ejectAMSSlot(${itemIndex})" title="Remettre en stock" class="absolute top-2 right-2 text-gray-400 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                ✖
-              </button>
-
-              <div class="my-2">
-                ${getSpoolSVG(item.color, "w-16 h-16")}
-              </div>
-
+              <div class="my-2">${getSpoolSVG(item.color, "w-16 h-16")}</div>
               <div class="text-center w-full">
                 <div class="font-bold text-xs text-white truncate">${item.brand}</div>
                 <div class="text-[10px] font-semibold text-emerald-400">${item.material}</div>
                 <div class="text-sm font-extrabold text-white mt-1">${item.weight}<span class="text-[10px] text-gray-400 font-normal">g</span></div>
               </div>
-
               <div class="w-full mt-2 pt-1.5 border-t border-gray-800 flex justify-between text-[9px] text-gray-400">
                 <span>🔥 ${item.nozzleTemp}°C</span>
                 <span>🛏️ ${item.bedTemp}°C</span>
@@ -228,10 +208,8 @@
           `;
         } else {
           container.innerHTML = `
-            <div onclick="openModalWithSlot('${slotId}')" class="bg-[#181A1F] border-2 border-dashed border-gray-800 hover:border-gray-600 rounded-xl p-4 flex flex-col items-center justify-center min-h-[140px] cursor-pointer transition-all group">
-              <span class="w-7 h-7 rounded-full bg-gray-800 text-gray-400 group-hover:text-white flex items-center justify-center text-xs font-bold mb-2">
-                ${slotId}
-              </span>
+            <div onclick="openModalForNew('${slotId}')" class="bg-[#181A1F] border-2 border-dashed border-gray-800 hover:border-gray-600 rounded-xl p-4 flex flex-col items-center justify-center min-h-[140px] cursor-pointer transition-all group">
+              <span class="w-7 h-7 rounded-full bg-gray-800 text-gray-400 group-hover:text-white flex items-center justify-center text-xs font-bold mb-2">${slotId}</span>
               <span class="text-[11px] text-gray-500 font-medium group-hover:text-gray-300">Vide</span>
               <span class="text-[9px] text-emerald-500/70 mt-1">+ Charger</span>
             </div>
@@ -240,7 +218,6 @@
       });
     }
 
-    // Affichage de l'Étagère (Stock hors AMS)
     function renderShelf() {
       const shelf = document.getElementById('shelf');
       shelf.innerHTML = '';
@@ -259,53 +236,124 @@
       stockItems.forEach((item) => {
         const realIndex = filaments.indexOf(item);
         const card = document.createElement('div');
-        card.className = "bg-[#21242C] border border-gray-800 rounded-xl p-3 flex flex-col items-center justify-between shadow-md hover:border-gray-600 transition-all relative group";
+        card.className = "spool-card bg-[#21242C] border border-gray-800 rounded-xl p-3 flex flex-col items-center justify-between shadow-md hover:border-gray-600 transition-all";
+        card.setAttribute('draggable', 'true');
+        card.setAttribute('ondragstart', `handleDragStart(event, ${realIndex})`);
+        card.setAttribute('ondragover', 'handleDragOver(event)');
+        card.setAttribute('ondragleave', 'handleDragLeave(event)');
+        card.setAttribute('ondrop', `handleDropOnSpool(event, ${realIndex})`);
+        card.setAttribute('onclick', `openModalForEdit(${realIndex})`);
 
         card.innerHTML = `
           <div class="w-full flex justify-between items-center mb-1">
             <span class="text-[9px] font-semibold text-gray-500 bg-gray-800/80 px-1.5 py-0.5 rounded">Stock</span>
-            <button onclick="event.stopPropagation(); deleteFilament(${realIndex})" class="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs">
-              🗑️
-            </button>
           </div>
-
-          <div class="my-1">
-            ${getSpoolSVG(item.color, "w-12 h-12")}
-          </div>
-
+          <div class="my-1">${getSpoolSVG(item.color, "w-12 h-12")}</div>
           <div class="w-full text-center space-y-0.5">
             <div class="font-bold text-xs text-white truncate">${item.brand}</div>
             <div class="text-[10px] text-emerald-400 font-medium">${item.material}</div>
             <div class="text-xs font-extrabold text-white">${item.weight}<span class="text-[9px] text-gray-400 font-normal">g</span></div>
           </div>
-
           <div class="w-full mt-2 pt-1.5 border-t border-gray-800/80 flex justify-between text-[9px] text-gray-500">
             <span>🔥 ${item.nozzleTemp}°</span>
             <span>🛏️ ${item.bedTemp}°</span>
           </div>
         `;
-
-        // Clic sur la carte du stock pour modifier le poids
-        card.addEventListener('click', () => {
-          const newWeight = prompt(`Nouveau poids pour ${item.brand} ${item.material} (g) :`, item.weight);
-          if (newWeight !== null) {
-            item.weight = parseInt(newWeight) || 0;
-            saveAndRender();
-          }
-        });
-
         shelf.appendChild(card);
       });
     }
 
-    function openModal() {
-      document.getElementById('modal').classList.remove('hidden');
-      document.getElementById('modal').classList.add('flex');
+    // Drag & Drop
+    function handleDragStart(e, index) {
+      draggedIndex = index;
+      e.dataTransfer.setData('text/plain', index);
     }
 
-    function openModalWithSlot(slotId) {
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      e.stopPropagation();
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    // Déposer sur un slot AMS ou dans le vide de l'étagère
+    function handleDrop(e, targetLocation) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.classList.remove('drag-over');
+
+      if (draggedIndex === null) return;
+
+      if (targetLocation !== 'Stock') {
+        const existingOnSlot = filaments.findIndex(f => f.location === targetLocation);
+        if (existingOnSlot !== -1 && existingOnSlot !== draggedIndex) {
+          filaments[existingOnSlot].location = 'Stock';
+        }
+      }
+
+      filaments[draggedIndex].location = targetLocation;
+      draggedIndex = null;
+      saveAndRender();
+    }
+
+    // Déposer directement sur une autre bobine du Stock pour réordonner
+    function handleDropOnSpool(e, targetIndex) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.classList.remove('drag-over');
+
+      if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+      // On s'assure que l'élément déplacé passe bien en Stock
+      filaments[draggedIndex].location = 'Stock';
+
+      // On réordonne dans le tableau
+      const [draggedItem] = filaments.splice(draggedIndex, 1);
+      filaments.splice(targetIndex, 0, draggedItem);
+
+      draggedIndex = null;
+      saveAndRender();
+    }
+
+    // Modal
+    function openModalForNew(slotId = 'Stock') {
+      document.getElementById('editIndex').value = "-1";
+      document.getElementById('modalTitle').innerText = "Ajouter un Filament";
+      document.getElementById('brand').value = "eSUN";
+      document.getElementById('material').value = "PLA+";
       document.getElementById('location').value = slotId;
-      openModal();
+      document.getElementById('color').value = "#00AE42";
+      document.getElementById('weight').value = 1000;
+      document.getElementById('nozzleTemp').value = 210;
+      document.getElementById('bedTemp').value = 60;
+      document.getElementById('deleteBtn').classList.add('hidden');
+      showModal();
+    }
+
+    function openModalForEdit(index) {
+      const item = filaments[index];
+      if (!item) return;
+
+      document.getElementById('editIndex').value = index;
+      document.getElementById('modalTitle').innerText = "Modifier le Filament";
+      document.getElementById('brand').value = item.brand || 'eSUN';
+      document.getElementById('material').value = item.material || 'PLA';
+      document.getElementById('location').value = item.location || 'Stock';
+      document.getElementById('color').value = item.color || '#00AE42';
+      document.getElementById('weight').value = item.weight ?? 1000;
+      document.getElementById('nozzleTemp').value = item.nozzleTemp ?? 210;
+      document.getElementById('bedTemp').value = item.bedTemp ?? 60;
+      document.getElementById('deleteBtn').classList.remove('hidden');
+      showModal();
+    }
+
+    function showModal() {
+      document.getElementById('modal').classList.remove('hidden');
+      document.getElementById('modal').classList.add('flex');
     }
 
     function closeModal() {
@@ -314,40 +362,42 @@
     }
 
     function saveFilament() {
-      const loc = document.getElementById('location').value;
+      const editIndex = parseInt(document.getElementById('editIndex').value);
+      const targetLoc = document.getElementById('location').value;
 
-      // Si le slot AMS est déjà occupé par un autre filament, remettre l'ancien en stock
-      if (loc !== 'Stock') {
-        const existingIndex = filaments.findIndex(f => f.location === loc);
-        if (existingIndex !== -1) {
-          filaments[existingIndex].location = 'Stock';
+      if (targetLoc !== 'Stock') {
+        const existingIdx = filaments.findIndex((f, idx) => f.location === targetLoc && idx !== editIndex);
+        if (existingIdx !== -1) {
+          filaments[existingIdx].location = 'Stock';
         }
       }
 
-      const newFilament = {
+      const updatedData = {
         brand: document.getElementById('brand').value,
         material: document.getElementById('material').value,
-        location: loc,
+        location: targetLoc,
         weight: parseInt(document.getElementById('weight').value) || 0,
         color: document.getElementById('color').value,
         nozzleTemp: parseInt(document.getElementById('nozzleTemp').value) || 210,
         bedTemp: parseInt(document.getElementById('bedTemp').value) || 60,
       };
 
-      filaments.push(newFilament);
+      if (editIndex >= 0) {
+        filaments[editIndex] = updatedData;
+      } else {
+        filaments.push(updatedData);
+      }
+
       saveAndRender();
       closeModal();
     }
 
-    function ejectAMSSlot(index) {
-      filaments[index].location = 'Stock';
-      saveAndRender();
-    }
-
-    function deleteFilament(index) {
-      if (confirm('Supprimer définitivement cette bobine ?')) {
-        filaments.splice(index, 1);
+    function deleteCurrentFilament() {
+      const editIndex = parseInt(document.getElementById('editIndex').value);
+      if (editIndex >= 0 && confirm('Supprimer cette bobine ?')) {
+        filaments.splice(editIndex, 1);
         saveAndRender();
+        closeModal();
       }
     }
 

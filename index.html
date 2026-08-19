@@ -3,43 +3,205 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestionnaire de Filaments 3D</title>
+  <title>Gestionnaire de Filaments & AMS Lite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
-    body { background: #121212; color: #e0e0e0; padding: 20px; display: flex; justify-content: center; }
-    .container { max-width: 600px; width: 100%; }
-    h1 { text-align: center; margin-bottom: 20px; color: #00bcd4; }
-    h2 { margin-bottom: 15px; color: #00bcd4; font-size: 1.2rem; }
-    .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-    
-    input, select, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: none; font-size: 15px; }
-    input, select { background: #2a2a2a; color: #fff; border: 1px solid #444; }
-    
-    button { background: #00bcd4; color: #121212; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 12px; }
-    button:hover { background: #00acc1; }
-    .btn-secondary { background: #333; color: #ccc; }
-    .btn-secondary:hover { background: #444; }
-    .btn-danger { background: #cf6679; color: #000; font-size: 13px; padding: 6px 12px; width: auto; margin: 0; }
-    .btn-logout { background: #d32f2f; color: #fff; margin-top: 25px; }
-
-    .hidden { display: none; }
-    .error { color: #cf6679; font-size: 14px; margin-top: 10px; text-align: center; }
-    
-    .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    
-    ul { list-style: none; margin-top: 15px; }
-    li { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #00bcd4; }
-    .filament-info { display: flex; flex-direction: column; gap: 4px; }
-    .filament-title { font-weight: bold; font-size: 1.1rem; color: #fff; }
-    .filament-details { font-size: 0.85rem; color: #aaa; }
+    body { background-color: #121316; color: #E0E0E0; user-select: none; }
+    .shelf-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+    }
+    .spool-card { cursor: grab; transition: transform 0.15s ease, border-color 0.15s ease; }
+    .spool-card:active { cursor: grabbing; transform: scale(0.96); }
+    .drag-over { border-color: #10B981 !important; background-color: rgba(16, 185, 129, 0.1) !important; }
   </style>
+</head>
+<body class="p-4 font-sans max-w-7xl mx-auto">
+
+  <!-- Modal d'Authentification (Inscription / Connexion Firebase) -->
+  <div id="authModal" class="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-[100] backdrop-blur-md">
+    <div class="bg-[#1E2026] border border-gray-700/80 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-center">
+      <div class="w-12 h-12 rounded-full bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center mx-auto">
+        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      </div>
+      <div>
+        <h2 id="authTitle" class="text-lg font-bold text-white">Connexion</h2>
+        <p class="text-xs text-gray-400 mt-1">Connecte-toi pour accéder à ton stock de filaments.</p>
+      </div>
+      
+      <div class="space-y-3">
+        <input type="email" id="authEmail" placeholder="Adresse email" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-all">
+        <input type="password" id="authPassword" placeholder="Mot de passe" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-all">
+        <p id="authError" class="text-xs text-red-400 hidden"></p>
+        
+        <button id="authPrimaryBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm transition-all shadow-md">
+          Se connecter
+        </button>
+        <button id="authToggleBtn" class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-2 rounded-lg text-xs transition-all border border-gray-700">
+          Pas de compte ? S'inscrire
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenu Principal (masqué avant authentification) -->
+  <div id="appContent" class="hidden">
+    <header class="flex justify-between items-center bg-[#1E2026] p-4 rounded-xl mb-6 shadow-lg border border-gray-800">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white leading-tight">Stock & AMS Lite</h1>
+          <p class="text-xs text-gray-400 flex items-center gap-2">
+            <span id="userEmailDisplay">Compte</span>
+            <span id="syncStatus" class="inline-block w-2 h-2 rounded-full bg-yellow-500" title="Chargement..."></span>
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="logoutBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold px-3 py-2 rounded-lg transition-all text-xs flex items-center gap-1 border border-gray-700">
+          🔒 Déconnexion
+        </button>
+        <button onclick="openModalForNew()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2 shadow-md">
+          <span>+</span> Ajouter
+        </button>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- BOÎTE 1 : AMS LITE (À GAUCHE) -->
+      <section class="lg:col-span-5 bg-[#181A1F] p-5 rounded-xl border border-gray-800/80 shadow-xl flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
+            <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+              <span>🎛️</span> AMS Lite (4 Slots)
+            </h2>
+            <span class="text-[11px] text-gray-500">Bambu Lab</span>
+          </div>
+
+          <div class="relative bg-[#131418] p-4 rounded-xl border border-gray-800/60 my-2">
+            <div class="absolute left-1/2 top-4 bottom-4 -translate-x-1/2 w-4 bg-gray-800/80 rounded-full border border-gray-700/50 z-0"></div>
+
+            <div class="grid grid-cols-2 gap-4 relative z-10">
+              <div id="slot-A1" data-slot="A1" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A1')"></div>
+              <div id="slot-A4" data-slot="A4" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A4')"></div>
+              <div id="slot-A2" data-slot="A2" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A2')"></div>
+              <div id="slot-A3" data-slot="A3" class="ams-drop-zone min-h-[150px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'A3')"></div>
+            </div>
+          </div>
+        </div>
+        <p class="text-[11px] text-gray-500 text-center mt-3">Glisse une bobine sur un slot ou clique dessus pour modifier.</p>
+      </section>
+
+      <!-- BOÎTE 2 : STOCK GÉNÉRAL (À DROITE) -->
+      <section class="lg:col-span-7 bg-[#181A1F] p-5 rounded-xl border border-gray-800/80 shadow-xl min-h-[500px]" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'Stock')">
+        <div class="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
+          <h2 class="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+            <span>📦</span> Stock Étagère
+          </h2>
+          <span class="text-[11px] text-gray-500">Glisse entre les bobines pour réordonner</span>
+        </div>
+
+        <div id="shelf" class="shelf-grid"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Modal Édition / Création -->
+  <div id="modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50 backdrop-blur-sm">
+    <div class="bg-[#1E2026] border border-gray-700/80 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+        <h3 id="modalTitle" class="text-base font-bold text-white">Éditer le Filament</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-white text-lg">&times;</button>
+      </div>
+      
+      <input type="hidden" id="editDocId" value="">
+
+      <div class="space-y-3.5">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">Marque</label>
+            <select id="brand" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+              <option>eSUN</option>
+              <option>Bambu Lab</option>
+              <option>Sunlu</option>
+              <option>Eryone</option>
+              <option>Polymaker</option>
+              <option>Elegoo</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">Matériau</label>
+            <select id="material" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+              <option>PLA</option>
+              <option>PLA+</option>
+              <option>PETG</option>
+              <option>TPU</option>
+              <option>ABS</option>
+              <option>ASA</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">Position</label>
+            <select id="location" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+              <option value="Stock">Étagère (Stock)</option>
+              <option value="A1">AMS Lite - A1</option>
+              <option value="A2">AMS Lite - A2</option>
+              <option value="A3">AMS Lite - A3</option>
+              <option value="A4">AMS Lite - A4</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">Couleur du Fil</label>
+            <input type="color" id="color" value="#00AE42" class="w-full h-[38px] bg-[#262931] border border-gray-700 rounded-lg p-1 cursor-pointer">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">Poids Restant (g)</label>
+          <input type="number" id="weight" value="1000" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">Temp. Buse (°C)</label>
+            <input type="number" id="nozzleTemp" value="210" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">Temp. Plateau (°C)</label>
+            <input type="number" id="bedTemp" value="60" class="w-full bg-[#262931] border border-gray-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-gray-800">
+        <button id="deleteBtn" onclick="deleteCurrentFilament()" class="px-3 py-2 text-xs text-red-400 hover:text-red-300 transition-colors hidden">Supprimer</button>
+        <div class="flex gap-2 ml-auto">
+          <button onclick="closeModal()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Annuler</button>
+          <button onclick="saveFilament()" class="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 shadow-md transition-all">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- SDKs Firebase v10 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } 
       from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, deleteDoc, doc, query, where, onSnapshot } 
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } 
       from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     // Configuration Firebase
@@ -57,41 +219,34 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Éléments du DOM
-    const authSection = document.getElementById('auth-section');
-    const appSection = document.getElementById('app-section');
-    const authTitle = document.getElementById('auth-title');
-    const authBtn = document.getElementById('auth-btn');
-    const toggleAuthBtn = document.getElementById('toggle-auth-btn');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const authError = document.getElementById('auth-error');
-    const userEmailSpan = document.getElementById('user-email');
-    const logoutBtn = document.getElementById('logout-btn');
-
-    const brandInput = document.getElementById('brand-input');
-    const typeSelect = document.getElementById('type-select');
-    const colorInput = document.getElementById('color-input');
-    const weightInput = document.getElementById('weight-input');
-    const addFilamentBtn = document.getElementById('add-filament-btn');
-    const filamentsList = document.getElementById('filaments-list');
-
+    let filaments = [];
+    let draggedDocId = null;
     let isSignUp = false;
 
-    // Basculer Connexion / Inscription
-    toggleAuthBtn.addEventListener('click', () => {
+    // --- Gestion Authentification ---
+    const authModal = document.getElementById('authModal');
+    const appContent = document.getElementById('appContent');
+    const authTitle = document.getElementById('authTitle');
+    const authEmail = document.getElementById('authEmail');
+    const authPassword = document.getElementById('authPassword');
+    const authError = document.getElementById('authError');
+    const authPrimaryBtn = document.getElementById('authPrimaryBtn');
+    const authToggleBtn = document.getElementById('authToggleBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const userEmailDisplay = document.getElementById('userEmailDisplay');
+
+    authToggleBtn.addEventListener('click', () => {
       isSignUp = !isSignUp;
       authTitle.textContent = isSignUp ? "Créer un compte" : "Connexion";
-      authBtn.textContent = isSignUp ? "S'inscrire" : "Se connecter";
-      toggleAuthBtn.textContent = isSignUp ? "Déjà un compte ? Connecte-toi" : "Pas de compte ? S'inscrire";
-      authError.textContent = "";
+      authPrimaryBtn.textContent = isSignUp ? "S'inscrire" : "Se connecter";
+      authToggleBtn.textContent = isSignUp ? "Déjà un compte ? Se connecter" : "Pas de compte ? S'inscrire";
+      authError.classList.add('hidden');
     });
 
-    // Action Authentification
-    authBtn.addEventListener('click', async () => {
-      const email = emailInput.value;
-      const password = passwordInput.value;
-      authError.textContent = "";
+    authPrimaryBtn.addEventListener('click', async () => {
+      const email = authEmail.value;
+      const password = authPassword.value;
+      authError.classList.add('hidden');
 
       try {
         if (isSignUp) {
@@ -101,124 +256,278 @@
         }
       } catch (err) {
         authError.textContent = "Erreur : " + err.message;
+        authError.classList.remove('hidden');
       }
     });
 
-    // Déconnexion
     logoutBtn.addEventListener('click', () => signOut(auth));
 
-    // Suivi de l'état utilisateur
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        userEmailSpan.textContent = user.email;
-        authSection.classList.add('hidden');
-        appSection.classList.remove('hidden');
-        chargerFilaments(user.uid);
+        userEmailDisplay.textContent = user.email;
+        authModal.classList.add('hidden');
+        appContent.classList.remove('hidden');
+        listenToUserFilaments(user.uid);
       } else {
-        authSection.classList.remove('hidden');
-        appSection.classList.add('hidden');
-        filamentsList.innerHTML = "";
+        authModal.classList.remove('hidden');
+        appContent.classList.add('hidden');
+        filaments = [];
+        renderAll();
       }
     });
 
-    // Ajouter un filament lié à l'utilisateur
-    addFilamentBtn.addEventListener('click', async () => {
-      const brand = brandInput.value.trim();
-      const type = typeSelect.value;
-      const color = colorInput.value.trim();
-      const weight = weightInput.value;
-      const user = auth.currentUser;
-
-      if (brand && color && weight && user) {
-        await addDoc(collection(db, "filaments"), {
-          brand: brand,
-          type: type,
-          color: color,
-          weightGrams: Number(weight),
-          userId: user.uid,
-          createdAt: new Date()
-        });
-
-        // Réinitialiser les champs
-        brandInput.value = "";
-        colorInput.value = "";
-        weightInput.value = "";
+    function setSyncStatus(state) {
+      const el = document.getElementById('syncStatus');
+      if (state === 'syncing') {
+        el.className = "inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse";
+        el.title = "Synchronisation...";
+      } else if (state === 'ok') {
+        el.className = "inline-block w-2 h-2 rounded-full bg-emerald-500";
+        el.title = "Synchronisé avec Firebase";
+      } else {
+        el.className = "inline-block w-2 h-2 rounded-full bg-red-500";
+        el.title = "Erreur de connexion";
       }
-    });
+    }
 
-    // Charger les filaments de l'utilisateur connecté
-    function chargerFilaments(userId) {
+    // --- Temps Réel Firebase ---
+    function listenToUserFilaments(userId) {
+      setSyncStatus('syncing');
       const q = query(collection(db, "filaments"), where("userId", "==", userId));
 
       onSnapshot(q, (snapshot) => {
-        filamentsList.innerHTML = "";
-        snapshot.forEach((documentSnap) => {
-          const data = documentSnap.data();
-          const id = documentSnap.id;
-
-          const li = document.createElement('li');
-          li.innerHTML = `
-            <div class="filament-info">
-              <span class="filament-title">${data.brand} — ${data.type}</span>
-              <span class="filament-details">Couleur : ${data.color} | Reste : ${data.weightGrams}g</span>
-            </div>
-            <button class="btn-danger" data-id="${id}">Supprimer</button>
-          `;
-
-          // Event listener pour supprimer
-          li.querySelector('.btn-danger').addEventListener('click', async (e) => {
-            const docId = e.target.getAttribute('data-id');
-            await deleteDoc(doc(doc(db, "filaments", docId)));
-          });
-
-          filamentsList.appendChild(li);
+        filaments = [];
+        snapshot.forEach((docSnap) => {
+          filaments.push({ id: docSnap.id, ...docSnap.data() });
         });
+        setSyncStatus('ok');
+        renderAll();
+      }, (err) => {
+        console.error(err);
+        setSyncStatus('error');
       });
     }
+
+    function getSpoolSVG(colorHex, sizeClass = "w-14 h-14") {
+      return `
+        <div class="relative flex items-center justify-center">
+          <div class="${sizeClass} rounded-full bg-[#16181D] border-4 border-[#323642] shadow-inner flex items-center justify-center relative">
+            <div class="w-3/4 h-3/4 rounded-full flex items-center justify-center shadow-md" style="background-color: ${colorHex}; border: 1.5px solid rgba(255,255,255,0.2)">
+              <div class="w-1/3 h-1/3 rounded-full bg-[#21242C] border border-[#323642] flex items-center justify-center">
+                <div class="w-1.5 h-1.5 rounded-full bg-[#111215]"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAll() {
+      renderAMS();
+      renderShelf();
+    }
+
+    function renderAMS() {
+      const slots = ['A1', 'A4', 'A2', 'A3'];
+
+      slots.forEach(slotId => {
+        const container = document.getElementById(`slot-${slotId}`);
+        const item = filaments.find(f => f.location === slotId);
+
+        if (item) {
+          container.innerHTML = `
+            <div draggable="true" data-docid="${item.id}" class="spool-card bg-[#1E2026] border border-emerald-500/40 rounded-xl p-3 flex flex-col items-center relative shadow-lg group hover:border-emerald-400">
+              <span class="absolute top-2 left-2 bg-emerald-500 text-black font-extrabold text-[10px] px-1.5 py-0.5 rounded-md shadow">
+                ${slotId}
+              </span>
+              <div class="my-2">${getSpoolSVG(item.color, "w-16 h-16")}</div>
+              <div class="text-center w-full">
+                <div class="font-bold text-xs text-white truncate">${item.brand}</div>
+                <div class="text-[10px] font-semibold text-emerald-400">${item.material}</div>
+                <div class="text-sm font-extrabold text-white mt-1">${item.weight}<span class="text-[10px] text-gray-400 font-normal">g</span></div>
+              </div>
+              <div class="w-full mt-2 pt-1.5 border-t border-gray-800 flex justify-between text-[9px] text-gray-400">
+                <span>🔥 ${item.nozzleTemp}°C</span>
+                <span>🛏️ ${item.bedTemp}°C</span>
+              </div>
+            </div>
+          `;
+          const cardEl = container.querySelector('.spool-card');
+          cardEl.addEventListener('dragstart', (e) => handleDragStart(e, item.id));
+          cardEl.addEventListener('click', () => openModalForEdit(item.id));
+        } else {
+          container.innerHTML = `
+            <div onclick="openModalForNew('${slotId}')" class="bg-[#181A1F] border-2 border-dashed border-gray-800 hover:border-gray-600 rounded-xl p-4 flex flex-col items-center justify-center min-h-[140px] cursor-pointer transition-all group">
+              <span class="w-7 h-7 rounded-full bg-gray-800 text-gray-400 group-hover:text-white flex items-center justify-center text-xs font-bold mb-2">${slotId}</span>
+              <span class="text-[11px] text-gray-500 font-medium group-hover:text-gray-300">Vide</span>
+              <span class="text-[9px] text-emerald-500/70 mt-1">+ Charger</span>
+            </div>
+          `;
+        }
+      });
+    }
+
+    function renderShelf() {
+      const shelf = document.getElementById('shelf');
+      shelf.innerHTML = '';
+
+      const stockItems = filaments.filter(f => !f.location || f.location === 'Stock');
+
+      if (stockItems.length === 0) {
+        shelf.innerHTML = `
+          <div class="col-span-full py-12 text-center text-gray-500 text-xs">
+            Aucune bobine dans le stock étagère.
+          </div>
+        `;
+        return;
+      }
+
+      stockItems.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = "spool-card bg-[#21242C] border border-gray-800 rounded-xl p-3 flex flex-col items-center justify-between shadow-md hover:border-gray-600 transition-all";
+        card.setAttribute('draggable', 'true');
+
+        card.innerHTML = `
+          <div class="w-full flex justify-between items-center mb-1">
+            <span class="text-[9px] font-semibold text-gray-500 bg-gray-800/80 px-1.5 py-0.5 rounded">Stock</span>
+          </div>
+          <div class="my-1">${getSpoolSVG(item.color, "w-12 h-12")}</div>
+          <div class="w-full text-center space-y-0.5">
+            <div class="font-bold text-xs text-white truncate">${item.brand}</div>
+            <div class="text-[10px] text-emerald-400 font-medium">${item.material}</div>
+            <div class="text-xs font-extrabold text-white">${item.weight}<span class="text-[9px] text-gray-400 font-normal">g</span></div>
+          </div>
+          <div class="w-full mt-2 pt-1.5 border-t border-gray-800/80 flex justify-between text-[9px] text-gray-500">
+            <span>🔥 ${item.nozzleTemp}°</span>
+            <span>🛏️ ${item.bedTemp}°</span>
+          </div>
+        `;
+
+        card.addEventListener('dragstart', (e) => handleDragStart(e, item.id));
+        card.addEventListener('click', () => openModalForEdit(item.id));
+
+        shelf.appendChild(card);
+      });
+    }
+
+    // --- Drag & Drop ---
+    window.handleDragStart = function(e, docId) {
+      draggedDocId = docId;
+      e.dataTransfer.setData('text/plain', docId);
+    };
+
+    window.handleDragOver = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.classList.add('drag-over');
+    };
+
+    window.handleDragLeave = function(e) {
+      e.stopPropagation();
+      e.currentTarget.classList.remove('drag-over');
+    };
+
+    window.handleDrop = async function(e, targetLocation) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.classList.remove('drag-over');
+
+      if (!draggedDocId) return;
+
+      if (targetLocation !== 'Stock') {
+        const existingOnSlot = filaments.find(f => f.location === targetLocation);
+        if (existingOnSlot && existingOnSlot.id !== draggedDocId) {
+          await updateDoc(doc(db, "filaments", existingOnSlot.id), { location: 'Stock' });
+        }
+      }
+
+      await updateDoc(doc(db, "filaments", draggedDocId), { location: targetLocation });
+      draggedDocId = null;
+    };
+
+    // --- Fonctions Modal ---
+    window.openModalForNew = function(slotId = 'Stock') {
+      document.getElementById('editDocId').value = "";
+      document.getElementById('modalTitle').innerText = "Ajouter un Filament";
+      document.getElementById('brand').value = "eSUN";
+      document.getElementById('material').value = "PLA+";
+      document.getElementById('location').value = slotId;
+      document.getElementById('color').value = "#00AE42";
+      document.getElementById('weight').value = 1000;
+      document.getElementById('nozzleTemp').value = 210;
+      document.getElementById('bedTemp').value = 60;
+      document.getElementById('deleteBtn').classList.add('hidden');
+      showModal();
+    };
+
+    window.openModalForEdit = function(docId) {
+      const item = filaments.find(f => f.id === docId);
+      if (!item) return;
+
+      document.getElementById('editDocId').value = docId;
+      document.getElementById('modalTitle').innerText = "Modifier le Filament";
+      document.getElementById('brand').value = item.brand || 'eSUN';
+      document.getElementById('material').value = item.material || 'PLA';
+      document.getElementById('location').value = item.location || 'Stock';
+      document.getElementById('color').value = item.color || '#00AE42';
+      document.getElementById('weight').value = item.weight ?? 1000;
+      document.getElementById('nozzleTemp').value = item.nozzleTemp ?? 210;
+      document.getElementById('bedTemp').value = item.bedTemp ?? 60;
+      document.getElementById('deleteBtn').classList.remove('hidden');
+      showModal();
+    };
+
+    function showModal() {
+      document.getElementById('modal').classList.remove('hidden');
+      document.getElementById('modal').classList.add('flex');
+    }
+
+    window.closeModal = function() {
+      document.getElementById('modal').classList.add('hidden');
+      document.getElementById('modal').classList.remove('flex');
+    };
+
+    window.saveFilament = async function() {
+      const docId = document.getElementById('editDocId').value;
+      const targetLoc = document.getElementById('location').value;
+      const user = auth.currentUser;
+
+      if (!user) return;
+
+      if (targetLoc !== 'Stock') {
+        const existingOnSlot = filaments.find(f => f.location === targetLoc && f.id !== docId);
+        if (existingOnSlot) {
+          await updateDoc(doc(db, "filaments", existingOnSlot.id), { location: 'Stock' });
+        }
+      }
+
+      const filamentData = {
+        brand: document.getElementById('brand').value,
+        material: document.getElementById('material').value,
+        location: targetLoc,
+        weight: parseInt(document.getElementById('weight').value) || 0,
+        color: document.getElementById('color').value,
+        nozzleTemp: parseInt(document.getElementById('nozzleTemp').value) || 210,
+        bedTemp: parseInt(document.getElementById('bedTemp').value) || 60,
+        userId: user.uid
+      };
+
+      if (docId) {
+        await updateDoc(doc(db, "filaments", docId), filamentData);
+      } else {
+        await addDoc(collection(db, "filaments"), filamentData);
+      }
+
+      closeModal();
+    };
+
+    window.deleteCurrentFilament = async function() {
+      const docId = document.getElementById('editDocId').value;
+      if (docId && confirm('Supprimer cette bobine ?')) {
+        await deleteDoc(doc(db, "filaments", docId));
+        closeModal();
+      }
+    };
   </script>
-</head>
-<body>
-
-  <div class="container">
-    <h1>🧵 Stock Filaments 3D</h1>
-
-    <!-- FORMULAIRE DE CONNEXION / INSCRIPTION -->
-    <div id="auth-section" class="card">
-      <h2 id="auth-title">Connexion</h2>
-      <input type="email" id="email" placeholder="Adresse email">
-      <input type="password" id="password" placeholder="Mot de passe">
-      <button id="auth-btn">Se connecter</button>
-      <button id="toggle-auth-btn" class="btn-secondary">Pas de compte ? S'inscrire</button>
-      <div id="auth-error" class="error"></div>
-    </div>
-
-    <!-- APPLICATION DE GESTION -->
-    <div id="app-section" class="card hidden">
-      <p>Compte : <strong id="user-email"></strong></p>
-
-      <h2 style="margin-top: 20px;">Ajouter une bobine</h2>
-      <div class="grid-inputs">
-        <input type="text" id="brand-input" placeholder="Marque (ex: eSUN, Elegoo)">
-        <select id="type-select">
-          <option value="PLA+">PLA+</option>
-          <option value="PLA">PLA</option>
-          <option value="PETG">PETG</option>
-          <option value="TPU">TPU</option>
-          <option value="ABS">ABS</option>
-        </select>
-      </div>
-      <div class="grid-inputs">
-        <input type="text" id="color-input" placeholder="Couleur (ex: Noir, Rouge)">
-        <input type="number" id="weight-input" placeholder="Poids restant (g)">
-      </div>
-      <button id="add-filament-btn">Ajouter la bobine</button>
-
-      <h2 style="margin-top: 25px;">Mes Bobines</h2>
-      <ul id="filaments-list"></ul>
-
-      <button id="logout-btn" class="btn-logout">Se déconnecter</button>
-    </div>
-  </div>
-
 </body>
 </html>
